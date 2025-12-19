@@ -117,7 +117,7 @@ def parse_args():
     parser.add_argument("--audioset_ckpt", type=str, default="./audioset_10_10_0.4593.pth",
                     help="Path to the AudioSet+ImageNet pretrained checkpoint for AST")
 
-    args = parser.parse_args(args=[])
+    args = parser.parse_args()
     iterations = args.lr_decay_epochs.split(',')
     args.lr_decay_epochs = list([])
     for it in iterations:
