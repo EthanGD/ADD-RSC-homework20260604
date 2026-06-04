@@ -1,9 +1,14 @@
 """
 下载 AST 预训练权重 (ast-finetuned-audioset-10-10-0.4593.pth)
-来源: https://huggingface.co/MIT/ast-finetuned-audioset-10-10-0.4593
+来源：https://huggingface.co/MIT/ast-finetuned-audioset-10-10-0.4593
 """
 import os
+import sys
 import urllib.request
+import ssl
+
+sys.stdout.reconfigure(encoding='utf-8')
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # ========== 配置 ==========
 SAVE_PATH = "./ast-finetuned-audioset-10-10-0.4593.pth"

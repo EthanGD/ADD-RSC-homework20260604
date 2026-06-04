@@ -1,17 +1,25 @@
 """
 下载 ICBHI 2017 呼吸音数据集并解压到指定目录
-数据来源: https://bhichallenge.med.auth.gr/ICBHI_2017_Challenge
+数据来源：https://bhichallenge.med.auth.gr/ICBHI_2017_Challenge
 """
 import os
+import sys
 import urllib.request
 import zipfile
+import ssl
+
+sys.stdout.reconfigure(encoding='utf-8')
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # ========== 配置 ==========
 SAVE_DIR = "./data/ICBHI"
 ZIP_PATH = os.path.join(SAVE_DIR, "ICBHI_final_database.zip")
-DATA_URL = "https://bhichallenge.med.auth.gr/sites/default/files/ICBHI_2017_training.zip"
+DATA_URL = "https://bhichallenge.med.auth.gr/sites/default/files/ICBHI_final_database/ICBHI_final_database.zip"
 # 备用链接（Zenodo 镜像）
 FALLBACK_URL = "https://zenodo.org/record/4009889/files/ICBHI_final_database.zip"
+# 人口统计信息和事件文件
+DEMOGRAPHIC_URL = "https://bhichallenge.med.auth.gr/sites/default/files/ICBHI_final_database/ICBHI_Challenge_demographic_information.txt"
+EVENTS_URL = "https://bhichallenge.med.auth.gr/sites/default/files/ICBHI_final_database/events.zip"
 
 
 def download_file(url, save_path):
