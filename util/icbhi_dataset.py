@@ -35,6 +35,7 @@ class ICBHIDataset(Dataset):
 
         filenames = os.listdir(data_folder)
         filenames =set([f.strip().split('.')[0] for f in filenames if '.wav' in f or '.txt' in f])
+        filenames = [f for f in filenames if len(f.split('_')) == 5 and f.split('_')[0].isdigit()]
         filenames = sorted(filenames)
 
         patient_dict = {}

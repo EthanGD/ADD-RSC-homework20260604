@@ -30,9 +30,14 @@ def _extract_lungsound_annotation(file_name, data_folder):
     return recording_info, recording_annotations
 
 
+def _valid_annotation_filename(name):
+    tokens = name.split('_')
+    return len(tokens) == 5 and tokens[0].isdigit()
+
 def get_annotations(args, data_folder):
     if args.class_split == 'lungsound' or args.class_split in ['lungsound_meta', 'meta']:
         filenames = [f.strip().split('.')[0] for f in os.listdir(data_folder) if '.txt' in f]
+        filenames = [f for f in filenames if _valid_annotation_filename(f)]
 
         annotation_dict = {}
         for f in filenames:
@@ -41,6 +46,7 @@ def get_annotations(args, data_folder):
 
     elif args.class_split == 'diagnosis':
         filenames = [f.strip().split('.')[0] for f in os.listdir(data_folder) if '.txt' in f]
+        filenames = [f for f in filenames if _valid_annotation_filename(f)]
         tmp = pd.read_csv(os.path.join(args.data_folder, 'icbhi_dataset/patient_diagnosis.txt'), names=['Disease'], delimiter='\t')
 
         annotation_dict = {}
@@ -131,12 +137,8 @@ def get_individual_cycles_torchaudio(args, recording_annotations, data_folder, f
     sample_data = []
     fpath = os.path.join(data_folder, filename+'.wav')
         
-    sr = librosa.get_samplerate(fpath)
-    data, _ = torchaudio.load(fpath)
-    
-    if sr != sample_rate:
-        resample = T.Resample(sr, sample_rate)
-        data = resample(data)
+    data, _ = librosa.load(fpath, sr=sample_rate)
+    data = torch.from_numpy(data).unsqueeze(0).float()
 
     fade_samples_ratio = 16
     fade_samples = int(sample_rate / fade_samples_ratio)
