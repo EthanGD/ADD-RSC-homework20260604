@@ -1,0 +1,6 @@
+20260616 11:38:10 開始執行 python main.py
+20260616 11:38:45 出現第一個epoch第一個batch的日誌提醒
+20260616 12:18:23 出現Train epoch 1, total time 2383.75, accuracy:52.64
+20260616 12:42:40 中間有24分鐘沒有日誌，到這時才出現第一個expoch的验证日志，* S_p: 100.00, S_e: 0.00, Score: 50.00 (Best S_p: 0.00, S_e: 0.00, Score: 0.00) * Acc@1 51.84
+20260616 12:43:26 出現第二個epoch第一個batch的日誌提醒
+20260618 17:21:27 results updated to ./save/results.json 撒花完結50epoch

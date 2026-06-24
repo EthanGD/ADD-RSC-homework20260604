@@ -1,0 +1,20 @@
+$ uv venv --python 3.12
+$ source .venv/bin/activate
+$ uv pip install --no-index --find-links=./lib cmapy
+
+
+local:
+pip download tkinter -d ./lib --python-version 312 --platform manylinux2014_x86_64 --implementation cp --abi cp312 --only-binary=:all:
+pip download numpy torch -d ./lib  --python-version 312  --platform manylinux2014_x86_64  --implementation cp  --abi cp312  --only-binary=:all:  --index-url https://pytorch.org  --extra-index-url https://pypi.org
+
+
+ast
+pip download timm==0.4.5 -d ./lib --python-version 312 --platform manylinux2014_x86_64 --implementation cp --abi cp312 --only-binary=:all:
+pip download nvidia-cuda-nvrtc-cu12==12.4.127 -d ./lib --python-version 312 --platform manylinux2014_x86_64 --implementation cp --abi cp312 --only-binary=:all:
+pip download torch==2.6.0 -d ./lib --python-version 312 --platform manylinux2014_x86_64 --implementation cp --abi cp312 --only-binary=:all:
+
+pip install --no-index --find-links=./lib timm==0.4.5
+uv pip install --no-index --find-links=./lib timm==0.4.5 --no-deps
+
+(py12) :~/snake_torch/cdss/ADD-RSC-homework20260604$ which python
+/snake_torch/py12/bin/python

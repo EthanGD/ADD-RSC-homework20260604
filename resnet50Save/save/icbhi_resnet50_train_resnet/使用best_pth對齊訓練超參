@@ -1,0 +1,59 @@
+source snake_torch/py12/bin/activate
+cd /snake_torch/cdss/ADD-RSC-homework20260604
+CUDA_VISIBLE_DEVICES=6 python3 main.py \
+    --model resnet50 \
+    --eval \
+    --pretrained_ckpt ./save/icbhi_resnet50_train_resnet/best.pth \
+    --data_folder ./ICBHI/ICBHI_final_database \
+    --denoise_d_model 256 \
+    --denoise_num_heads 8 \
+    --denoise_depth 6 \
+    --loss_beta 0.5 \
+    --n_mels 128 \
+    --nfft 1024 \
+    --specaug_policy icbhi_ast_sup \
+    --batch_size 8 \
+    --num_workers 8
+
+$ CUDA_VISIBLE_DEVICES=6 python3 main.py \
+    --model resnet50 \
+    --eval \
+    --pretrained_ckpt ./save/icbhi_resnet50_train_resnet/best.pth \
+    --data_folder ./ICBHI/ICBHI_final_database \
+    --denoise_d_model 256 \
+    --denoise_num_heads 8 \
+    --denoise_depth 6 \
+    --loss_beta 0.5 \
+    --n_mels 128 \
+    --nfft 1024 \
+    --specaug_policy icbhi_ast_sup \
+    --batch_size 8 \
+    --num_workers 8
+********************
+Train and test 60-40% split with test_fold official
+File number in train dataset: 552
+********************
+Extracting individual breathing cycles..
+[Preprocessed train dataset information]
+total number of audio data: 4213
+Class 0 (normal) : 2250 (53.4%)
+Class 1 (crackle): 1051 (24.9%)
+Class 2 (wheeze) : 604  (14.3%)
+Class 3 (both)   : 308  (7.3%)
+********************
+Train and test 60-40% split with test_fold official
+File number in test dataset: 368
+********************
+Extracting individual breathing cycles..
+[Preprocessed test dataset information]
+total number of audio data: 2685
+Class 0 (normal) : 1392 (51.8%)
+Class 1 (crackle): 813  (30.3%)
+Class 2 (wheeze) : 282  (10.5%)
+Class 3 (both)   : 198  (7.4%)
+********************
+Testing the pretrained checkpoint on icbhi dataset
+ * S_p: 0.00, S_e: 15.31, Score: 7.66 (Best S_p: 0.00, S_e: 15.31, Score: 7.66)
+ * Acc@1 7.37
+best Score: [0.0, 15.31, 7.66] (sp, se, sc)
+results updated to ./save/results.json

@@ -1,0 +1,1 @@
+python main.py --model=ast --audioset_ckpt='./ast-finetuned-audioset-10-10-0.4593.pth' --data_folder='./data/ICBHI/ICBHI_final_database'

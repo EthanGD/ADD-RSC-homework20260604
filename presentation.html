@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>呼吸声分类的自适应差分去噪 - Interspeech 2025</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/night.min.css" id="theme">
+    <style>
+        .reveal h1, .reveal h2, .reveal h3 { text-transform: none; }
+        .reveal table { font-size: 0.6em; }
+        .reveal table th, .reveal table td { padding: 8px; }
+        .highlight { color: #42affa; font-weight: bold; }
+        .smaller { font-size: 0.8em; }
+        .two-column { display: flex; justify-content: space-between; }
+        .two-column > div { width: 48%; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <!-- 幻灯片 1：标题页 -->
+            <section>
+                <h1>呼吸声分类的自适应差分去噪</h1>
+                <h3>Adaptive Differential Denoising for Respiratory Sounds Classification</h3>
+                <p style="margin-top: 50px;">
+                    <strong>作者</strong>: Dong Gaoyang<sup>1</sup>, Zhang Zhicheng<sup>2</sup>,<br>
+                    Sun Ping<sup>3*</sup>, Zhang Minghui<sup>1*</sup>
+                </p>
+                <p><sup>1</sup>南昌大学信息工程学院<br>
+                <sup>2</sup>复旦大学计算机学院<br>
+                <sup>3</sup>南昌大学第一附属医院</p>
+                <p class="highlight" style="margin-top: 80px;">Interspeech 2025</p>
+            </section>
+
+            <!-- 幻灯片 2：研究背景 -->
+            <section>
+                <h2>研究背景</h2>
+                <h3>自动呼吸声分类（ARSC）的重要性</h3>
+                <ul>
+                    <li>无创诊断肺部疾病（哮喘、肺炎、COPD）</li>
+                    <li>远程医疗和资源受限地区的早期筛查</li>
+                    <li>通过分析数字听诊器或可穿戴传感器的听诊信号</li>
+                </ul>
+                <h3 style="margin-top: 40px;">面临的挑战</h3>
+                <table>
+                    <tr><th>挑战</th><th>说明</th></tr>
+                    <tr><td>数据稀缺</td><td>带注释的样本不足</td></tr>
+                    <tr><td>噪声污染</td><td>肢体运动、心音、环境噪声、传感器伪影</td></tr>
+                    <tr><td>传统方法局限</td><td>谱减法、维纳滤波无法保留高频病理特征</td></tr>
+                </table>
+            </section>
+
+            <!-- 幻灯片 3：现有方法局限性 -->
+            <section>
+                <h2>现有方法局限性</h2>
+                <h3>顺序去噪→分类范式的问题</h3>
+                <pre><code class="plaintext" style="font-size: 0.7em;">传统流程：原始音频 → 显式去噪 → 分类</code></pre>
+                <h3 style="margin-top: 30px;">三大局限</h3>
+                <ol>
+                    <li><strong>区域不匹配</strong>：通用音频去噪器在非生物医学记录上训练</li>
+                    <li><strong>病理特征丢失</strong>：显式去噪模块无意中消除细微病理特征</li>
+                    <li><strong>目标解耦</strong>：级联结构阻碍噪声不变表示的联合优化</li>
+                </ol>
+                <p class="smaller" style="margin-top: 30px;"><strong>传统滤波缺陷</strong>：巴特沃斯带通滤波丢失高频裂音（>2000Hz）</p>
+            </section>
+
+            <!-- 幻灯片 4：核心贡献 -->
+            <section>
+                <h2>核心贡献</h2>
+                <h3>本文提出隐式去噪方法</h3>
+                <div class="two-column">
+                    <div>
+                        <h4>1. 自适应频率滤波器（AFF）</h4>
+                        <ul class="smaller">
+                            <li>可学习频谱掩码 + 软收缩</li>
+                            <li>消除噪声同时保留诊断高频成分</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>2. 差分降噪层（DDL）</h4>
+                        <ul class="smaller">
+                            <li>差分注意力机制</li>
+                            <li>通过增强样本比较降低噪声变化</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="two-column">
+                    <div>
+                        <h4>3. 偏置去噪损失</h4>
+                        <ul class="smaller">
+                            <li>联合优化分类和鲁棒性</li>
+                            <li>无需干净标签</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="highlight">结果</h4>
+                        <ul class="smaller">
+                            <li>ICBHI2017 达到 <strong>65.53% Score</strong></li>
+                            <li>比 SOTA 提升 <strong>1.99%</strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 幻灯片 5：方法框架 -->
+            <section>
+                <h2>ADD4RSC 整体架构</h2>
+                <pre><code class="plaintext" style="font-size: 0.55em;">
+输入音频 → 预处理 → 自适应频率滤波器 → 差分降噪层 → 分类器 → 输出
+                    ↓                      ↓
+              频域可学习掩码          多头差分注意力
+                    ↓                      ↓
+                 软收缩                  联合损失
+                </code></pre>
+                <h3 style="margin-top: 30px;">预处理步骤</h3>
+                <ul class="smaller">
+                    <li>重采样到 16kHz | 固定 8 秒长度（循环填充/截断）</li>
+                    <li>幅度归一化 | Mel 谱图（64 滤波器，1024 窗口）</li>
+                </ul>
+            </section>
+
+            <!-- 幻灯片 6：自适应频率滤波器 -->
+            <section>
+                <h2>自适应频率滤波器（AFF）</h2>
+                <h3>快速傅里叶变换</h3>
+                <pre><code class="plaintext" style="font-size: 0.5em;">
+T-1  F-1
+Σ    Σ  X(t,f) e^(-2πi(Ut + Vf))
+t=0  f=0
+                </code></pre>
+                <h3>滤波公式</h3>
+                <pre><code class="plaintext" style="font-size: 0.5em;">
+X̂(t,f) = F⁻¹[Sα(M(X(U,V))) ⊙ X(U,V)]
+                </code></pre>
+                <ul class="smaller">
+                    <li><strong>M(·)</strong>：可学习实例自适应掩码（线性→ReLU→线性）</li>
+                    <li><strong>Sα(·)</strong>：软收缩 Sα(x) = sign(x)max{|x|-α, 0}</li>
+                    <li><strong>α = 0.02</strong>：控制稀疏度</li>
+                </ul>
+            </section>
+
+            <!-- 幻灯片 7：差分降噪层 -->
+            <section>
+                <h2>差分降噪层（DDL）</h2>
+                <h3>多头差分注意力（MHDA）</h3>
+                <pre><code class="plaintext" style="font-size: 0.5em;">
+[Q₁;Q₂] = XWQ, [K₁;K₂] = XWK, V = XWV
+
+A = (σ(Q₁K₁ᵀ/√d) - λ·σ(Q₂K₂ᵀ/√d))V
+                </code></pre>
+                <h3 style="margin-top: 30px;">工作原理</h3>
+                <ul class="smaller">
+                    <li>计算两个扰动表示的独立注意力图</li>
+                    <li>相减过滤噪声敏感变化</li>
+                    <li>保留稳定的高置信度特征</li>
+                    <li><strong>λ</strong>：可学习比例因子</li>
+                </ul>
+            </section>
+
+            <!-- 幻灯片 8：损失函数 -->
+            <section>
+                <h2>损失函数</h2>
+                <h3>混合损失设计</h3>
+                <pre><code class="plaintext" style="font-size: 0.6em;">
+L = β·L_BiasDenoise + (1-β)·L_CE
+                </code></pre>
+                <h3>偏置去噪损失（标签平滑交叉熵）</h3>
+                <pre><code class="plaintext" style="font-size: 0.45em;">
+L_BiasDenoise = -Σᵢ [y_c(1-ε) + ε/C]·log[φ(Norm(p))]
+                </code></pre>
+                <table style="margin-top: 20px;">
+                    <tr><td><strong>β = 0.5</strong></td><td>去噪与分类权重平衡</td></tr>
+                    <tr><td><strong>ε = 0.2</strong></td><td>不确定性缓冲器</td></tr>
+                    <tr><td><strong>φ</strong></td><td>1×1 卷积层</td></tr>
+                </table>
+                <p class="highlight" style="margin-top: 20px;">优势：仅依赖分类标签，无需干净参考信号</p>
+            </section>
+
+            <!-- 幻灯片 9：实验设置 -->
+            <section>
+                <h2>实验设置</h2>
+                <h3>ICBHI 2017 数据集</h3>
+                <table>
+                    <tr><th>属性</th><th>值</th></tr>
+                    <tr><td>参与者</td><td>126 人</td></tr>
+                    <tr><td>采样率</td><td>4kHz - 44.1kHz（重采样至 16kHz）</td></tr>
+                    <tr><td>持续时间</td><td>10-90 秒/记录</td></tr>
+                    <tr><td>划分</td><td>60% 训练 / 40% 测试（患者不重叠）</td></tr>
+                </table>
+                <h3 style="margin-top: 30px;">训练配置</h3>
+                <p class="smaller">PyTorch 2.3.1 | Tesla V100 | Adam (wd=0.1) | lr=5e-5 | batch=8 | epoch=50</p>
+            </section>
+
+            <!-- 幻灯片 10：评估指标 -->
+            <section>
+                <h2>评估指标</h2>
+                <h3>ICBHI 官方评估方法</h3>
+                <div class="two-column">
+                    <div>
+                        <h4>特异性（Sp）</h4>
+                        <pre><code class="plaintext" style="font-size: 0.4em;">
+正确识别的正常声音数
+───────────────────────
+    总正常声音数
+                        </code></pre>
+                    </div>
+                    <div>
+                        <h4>敏感性（Se）</h4>
+                        <pre><code class="plaintext" style="font-size: 0.4em;">
+正确识别的异常声音数
+───────────────────────
+    总异常声音数
+                        </code></pre>
+                    </div>
+                </div>
+                <h3 style="margin-top: 30px;">Score = (Se + Sp) / 2</h3>
+                <p class="smaller">异常声音：Wheeze（喘息）、Crackle（裂音）、两者</p>
+            </section>
+
+            <!-- 幻灯片 11：与 SOTA 比较（CNN） -->
+            <section>
+                <h2>与 SOTA 比较（CNN 方法）</h2>
+                <table>
+                    <tr><th>CNN 模型</th><th>Sp(%)</th><th>Se(%)</th><th>Score(%)</th><th>发表</th></tr>
+                    <tr><td>LungRN+NL</td><td>63.20</td><td>41.32</td><td>52.26</td><td>BioCAS 2019</td></tr>
+                    <tr><td>RespireNet</td><td>72.30</td><td>40.10</td><td>56.20</td><td>EMBC 2021</td></tr>
+                    <tr><td>CoTuning</td><td>79.34</td><td>37.24</td><td>58.29</td><td>IEEE TBE</td></tr>
+                    <tr><td>SCL</td><td>75.95</td><td>39.15</td><td>57.55</td><td>WASPAA 2023</td></tr>
+                    <tr class="highlight"><td><strong>Ours (ResNet50)</strong></td><td><strong>83.76</strong></td><td>34.18</td><td><strong>58.97</strong></td><td><strong>Interspeech 2025</strong></td></tr>
+                </table>
+                <p class="highlight" style="margin-top: 20px;">提升：比 CoTuning 高 2.68%</p>
+            </section>
+
+            <!-- 幻灯片 12：与 SOTA 比较（Transformer） -->
+            <section>
+                <h2>与 SOTA 比较（Transformer 方法）</h2>
+                <table>
+                    <tr><th>Transformer 模型</th><th>Sp(%)</th><th>Se(%)</th><th>Score(%)</th><th>发表</th></tr>
+                    <tr><td>AST Fine-tuning</td><td>77.14</td><td>41.97</td><td>59.55</td><td>Interspeech 2023</td></tr>
+                    <tr><td>Patch-Mix CL</td><td>81.66</td><td>43.07</td><td>62.37</td><td>Interspeech 2023</td></tr>
+                    <tr><td>M2D</td><td>81.51</td><td>45.08</td><td>63.29</td><td>IEEE TASLP</td></tr>
+                    <tr><td>BTS</td><td>81.40</td><td>45.67</td><td>63.54</td><td>Interspeech 2024</td></tr>
+                    <tr class="highlight"><td><strong>Ours (AST)</strong></td><td><strong>85.13</strong></td><td><strong>45.94</strong></td><td><strong>65.53</strong></td><td><strong>Interspeech 2025</strong></td></tr>
+                </table>
+                <p class="highlight" style="margin-top: 20px;">提升：比 BTS 高 1.99%，实现最高敏感性</p>
+            </section>
+
+            <!-- 幻灯片 13：消融实验 -->
+            <section>
+                <h2>消融实验（AST 骨干网）</h2>
+                <table>
+                    <tr><th>模型</th><th>Sp(%)</th><th>Se(%)</th><th>Score(%)</th></tr>
+                    <tr><td>w AFF</td><td>82.47</td><td>44.47</td><td>63.47</td></tr>
+                    <tr><td>w DDL</td><td>83.73</td><td>44.03</td><td>63.88</td></tr>
+                    <tr><td>w AFF+DDL</td><td>84.41</td><td>44.78</td><td>64.60</td></tr>
+                    <tr><td>w AFF+L_BiasDenoise</td><td>83.76</td><td>44.62</td><td>64.19</td></tr>
+                    <tr><td>w DDL+L_BiasDenoise</td><td>84.54</td><td>44.32</td><td>64.43</td></tr>
+                    <tr class="highlight"><td><strong>Ours（完整）</strong></td><td><strong>85.13</strong></td><td><strong>45.94</strong></td><td><strong>65.53</strong></td></tr>
+                </table>
+                <p class="highlight" style="margin-top: 20px;">结论：每个组件都至关重要，组合产生最佳性能</p>
+            </section>
+
+            <!-- 幻灯片 14：关键发现 -->
+            <section>
+                <h2>关键发现</h2>
+                <div class="two-column">
+                    <div>
+                        <h4>1. AFF 模块</h4>
+                        <ul class="smaller">
+                            <li>Sp 提升 2.66%</li>
+                            <li>有效抑制外源干扰</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>2. DDL 模块</h4>
+                        <ul class="smaller">
+                            <li>比 AFF 作用更大</li>
+                            <li>细化呼吸噪声，保留判别信号</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="two-column">
+                    <div>
+                        <h4>3. 联合优化</h4>
+                        <ul class="smaller">
+                            <li>AFF+DDL 互补</li>
+                            <li>L_BiasDenoise 进一步细化特征</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>4. 跨架构优势</h4>
+                        <ul class="smaller">
+                            <li>CNN 和 Transformer 都有效</li>
+                            <li>证明方法与架构无关</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 幻灯片 15：代码与资源 -->
+            <section>
+                <h2>代码与资源</h2>
+                <h3>开源信息</h3>
+                <ul>
+                    <li><strong>代码仓库</strong>: <a href="https://github.com/deegy666/ADD-RSC">https://github.com/deegy666/ADD-RSC</a></li>
+                    <li><strong>数据集</strong>: <a href="https://bhichallenge.med.auth.gr/">ICBHI 2017</a></li>
+                    <li><strong>预训练模型</strong>: Hugging Face (MIT/ast-finetuned-audioset-10-10-0.4593)</li>
+                </ul>
+                <h3 style="margin-top: 40px;">依赖环境</h3>
+                <pre><code class="plaintext" style="font-size: 0.6em;">
+torch==2.0.1
+torchaudio==2.0.1
+cuda==11.7
+                </code></pre>
+            </section>
+
+            <!-- 幻灯片 16：未来工作 -->
+            <section>
+                <h2>未来工作</h2>
+                <ol>
+                    <li>探索呼吸声事件检测任务的去噪技术</li>
+                    <li>扩展到多模态融合（文本、图像）</li>
+                    <li>实时部署优化</li>
+                    <li>跨数据集泛化能力验证</li>
+                </ol>
+                <h3 style="margin-top: 50px;">研究方向</h3>
+                <ul class="smaller">
+                    <li>更高效的注意力机制</li>
+                    <li>自监督学习预训练</li>
+                    <li>临床实际应用部署</li>
+                </ul>
+            </section>
+
+            <!-- 幻灯片 17：致谢 -->
+            <section>
+                <h2>致谢</h2>
+                <h3>感谢</h3>
+                <ul>
+                    <li>国家自然科学基金（No. 82260024）</li>
+                    <li>南昌大学第一附属医院</li>
+                    <li>南昌大学影像与视觉表征实验室</li>
+                    <li>patch-mix_contrastive_learning 社区</li>
+                    <li>FunASR 社区</li>
+                    <li>Adaptive frequency filters 项目</li>
+                </ul>
+            </section>
+
+            <!-- 幻灯片 18：参考文献 -->
+            <section>
+                <h2>参考文献</h2>
+                <pre><code class="bibtex" style="font-size: 0.45em;">
+@article{dong2025adaptive,
+  title={Adaptive Differential Denoising 
+         for Respiratory Sounds Classification},
+  author={Dong, Gaoyang and Zhang, Zhicheng 
+          and Sun, Ping and Zhang, Minghui},
+  journal={arXiv preprint arXiv:2506.02505},
+  year={2025}
+}
+                </code></pre>
+                <p class="smaller" style="margin-top: 30px;">论文链接：https://arxiv.org/abs/2506.02505</p>
+            </section>
+
+            <!-- 幻灯片 19：Q&A -->
+            <section>
+                <h1>谢谢！</h1>
+                <h2>Q & A</h2>
+                <p style="margin-top: 60px;">
+                    <strong>联系方式</strong>:<br>
+                    donggyncu@email.ncu.edu.cn<br>
+                    zhangminghui@ncu.edu.cn
+                </p>
+                <p class="smaller" style="margin-top: 50px;">
+                    代码：https://github.com/deegy666/ADD-RSC
+                </p>
+            </section>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            transition: 'slide',
+            width: 1200,
+            height: 700,
+            margin: 0.1,
+            minScale: 0.2,
+            maxScale: 2.0
+        });
+    </script>
+</body>
+</html>

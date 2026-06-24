@@ -1,0 +1,40 @@
+默认模型是 resnet50。
+parser.add_argument('--model', type=str, default='resnet50', help="model selection: ast or resnet50")
+
+
+cd ADD-RSC-homework20260604
+python main.py --tag ast_add --model ast --pretrained --data_folder ./data/ICBHI/ICBHI_final_database --audioset_ckpt ./ast-finetuned-audioset-10-10-0.4593.pth
+
+
+
+脚本执行成功，AST 预训练权重已下载完成，需要向用户报告下载结果。
+
+AST 预训练权重下载完成：
+
+文件：ast-finetuned-audioset-10-10-0.4593.pth
+大小：330.4 MB
+
+
+
+https://bhichallenge.med.auth.gr/sites/default/files/ICBHI_final_database/ICBHI_Challenge_demographic_information.txt
+
+https://bhichallenge.med.auth.gr/sites/default/files/ICBHI_final_database/events.zip
+
+此外，您還可以下載包含相應人口統計資訊和詳細事件的檔案。 （文字檔案中的列對應於以下變數（NA：不可用）：參與者 ID、年齡、性別、成人 BMI（kg/m² ）、兒童體重（kg）、兒童身高（cm））。
+
+
+解决方案：
+
+访问 https://bhichallenge.med.auth.gr/ICBHI_2017_Challenge 手动下载数据集
+将下载的 zip 文件放到 data/ICBHI/ 目录
+
+
+執行
+cd ADD-RSC-homework20260604; $env:CUDA_VISIBLE_DEVICES="6"; python main.py --tag ast_add --model ast --pretrained --data_folder ./data/ICBHI/ICBHI_final_database
+
+
+ubuntu
+cd ADD-RSC-homework20260604 && CUDA_VISIBLE_DEVICES=6 python main.py --tag ast_add --model ast --pretrained --data_folder ./data/ICBHI/ICBHI_final_database
+
+cd ADD-RSC-homework20260604
+CUDA_VISIBLE_DEVICES=6 python main.py
