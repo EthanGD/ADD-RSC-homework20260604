@@ -241,13 +241,14 @@ def set_model(args):
     if not args.weighted_loss:
         weights = None
         criterion = nn.CrossEntropyLoss()
-        denoise_criterion = LabelSmoothingLoss()
+        denoise_criterion = LabelSmoothingLoss(size=args.n_cls)
     else:
         weights = torch.tensor(args.class_nums, dtype=torch.float32)
         weights = 1.0 / (weights / weights.sum())
         weights /= weights.sum()
         
         criterion = nn.CrossEntropyLoss(weight=weights)
+        denoise_criterion = LabelSmoothingLoss(size=args.n_cls)
 
 
     # load pretrained checkpoint for linear evaluation
