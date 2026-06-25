@@ -55,6 +55,10 @@ def parse_args():
                         help='warmup epochs')
     parser.add_argument('--weighted_loss', action='store_true',
                         help='weighted cross entropy loss (higher weights on abnormal class)')
+    parser.add_argument('--eval_freq', type=int, default=1,
+                        help='run validation every N epochs (default: 1)')
+    parser.add_argument('--early_stop_patience', type=int, default=0,
+                        help='early stop if Score does not improve for N validations (0 disables)')
 
     # dataset
     parser.add_argument('--dataset', type=str, default='icbhi')
@@ -104,6 +108,8 @@ def parse_args():
     # model
 
     parser.add_argument('--model', type=str, default='resnet50',help="model selection: ast or resnet50")
+    parser.add_argument('--imagenet_pretrained', action='store_true',
+                        help='load ImageNet pretrained weights for ResNet50 backbone (conv1 adapted to 1ch)')
     parser.add_argument('--pretrained', action='store_true')
 
     parser.add_argument('--pretrained_ckpt', type=str, default=None,
@@ -226,7 +232,7 @@ def set_model(args):
         )
         classifier = deepcopy(model.mlp_head)
     elif args.model == 'resnet50':
-        model = ResNet50()
+        model = ResNet50(imagenet_pretrained=args.imagenet_pretrained)
         classifier = nn.Linear(model.final_feat_dim, args.n_cls)
     else:
         raise ValueError(f"Unsupported model: {args.model}")
@@ -324,8 +330,13 @@ def train(train_loader, model, bias_denoise_encoder, classifier, criterion, opti
         top1.update(acc1[0], bsz)
 
         optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        if scaler is not None and scaler.is_enabled():
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            optimizer.step()
     
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -439,6 +450,9 @@ def main():
 
     train_loader, val_loader, args = set_loader(args)
     model, bias_denoise_encoder, classifier, criterion, optimizer = set_model(args)
+    scaler = torch.cuda.amp.GradScaler(enabled=torch.cuda.is_available())
+    best_model = [deepcopy(model.state_dict()), deepcopy(bias_denoise_encoder.state_dict()), deepcopy(classifier.state_dict())]
+    no_improve = 0
 
     if args.resume:
         if os.path.isfile(args.resume):
@@ -463,13 +477,22 @@ def main():
 
             # train for one epoch
             time1 = time.time()
-            loss, acc = train(train_loader, model, bias_denoise_encoder, classifier, criterion, optimizer, epoch, args)
+            loss, acc = train(train_loader, model, bias_denoise_encoder, classifier, criterion, optimizer, epoch, args, scaler=scaler)
             time2 = time.time()
             print('Train epoch {}, total time {:.2f}, accuracy:{:.2f}'.format(
                 epoch, time2-time1, acc))
             
-            # eval for one epoch
-            best_acc, best_model, save_bool = validate(val_loader, model, bias_denoise_encoder, classifier, criterion, args, best_acc, best_model)
+            save_bool = False
+            do_eval = (args.eval_freq <= 1) or (epoch % args.eval_freq == 0) or (epoch == args.epochs)
+            if do_eval:
+                prev_best = best_acc[-1]
+                best_acc, best_model, save_bool = validate(val_loader, model, bias_denoise_encoder, classifier, criterion, args, best_acc, best_model)
+                if best_acc[-1] > prev_best:
+                    no_improve = 0
+                else:
+                    no_improve += 1
+                if args.early_stop_patience > 0 and no_improve >= args.early_stop_patience:
+                    break
             
             # save a checkpoint of model and classifier when the best score is updated
             if save_bool:            
