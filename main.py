@@ -65,6 +65,8 @@ def parse_args():
     parser.add_argument('--data_folder', type=str, default='./ICBHI/ICBHI_final_database')
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--num_workers', type=int, default=8)
+    parser.add_argument('--gpu_ids', type=str, default=None,
+                        help='comma-separated gpu ids, e.g. "7,0,1,2,3,4,5,6"; first gpu is the primary gpu')
     # icbhi dataset
     parser.add_argument('--class_split', type=str, default='lungsound',
                         help='lungsound: (normal, crackles, wheezes, both), diagnosis: (healthy, chronic diseases, non-chronic diseases)')
@@ -215,6 +217,16 @@ def set_loader(args):
 
 
 def set_model(args):    
+    if torch.cuda.is_available():
+        if args.gpu_ids:
+            device_ids = [int(x.strip()) for x in args.gpu_ids.split(',') if x.strip() != '']
+        else:
+            device_ids = list(range(torch.cuda.device_count()))
+        primary_device = torch.device(f'cuda:{device_ids[0]}')
+        torch.cuda.set_device(primary_device)
+    else:
+        device_ids = []
+        primary_device = torch.device('cpu')
 
     bias_denoise_encoder = DiffTransformerLayer(
         d_model=args.denoise_d_model,
@@ -274,23 +286,23 @@ def set_model(args):
         print('pretrained model loaded from: {}'.format(args.pretrained_ckpt))
 
 
-    criterion = [criterion.cuda(), denoise_criterion.cuda()]
+    criterion = [criterion.to(primary_device), denoise_criterion.to(primary_device)]
 
 
-    if torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model)
+    if len(device_ids) > 1:
+        model = torch.nn.DataParallel(model, device_ids=device_ids, output_device=device_ids[0])
         
-    model.cuda()
-    bias_denoise_encoder.cuda()
-    classifier.cuda()
+    model.to(primary_device)
+    bias_denoise_encoder.to(primary_device)
+    classifier.to(primary_device)
     
     optim_params = list(model.parameters()) + list(bias_denoise_encoder.parameters()) + list(classifier.parameters())
     optimizer = set_optimizer(args, optim_params)
 
-    return model, bias_denoise_encoder, classifier, criterion, optimizer
+    return model, bias_denoise_encoder, classifier, criterion, optimizer, primary_device
 
 
-def train(train_loader, model, bias_denoise_encoder, classifier, criterion, optimizer, epoch, args, scaler=None):
+def train(train_loader, model, bias_denoise_encoder, classifier, criterion, optimizer, epoch, args, device, scaler=None):
     model.train()
     classifier.train()
     bias_denoise_encoder.train()
@@ -308,8 +320,8 @@ def train(train_loader, model, bias_denoise_encoder, classifier, criterion, opti
 
         data_time.update(time.time() - end)
 
-        images = images.cuda(non_blocking=True)
-        labels = labels.cuda(non_blocking=True)
+        images = images.to(device, non_blocking=True)
+        labels = labels.to(device, non_blocking=True)
         bsz = labels.shape[0]
 
         warmup_learning_rate(args, epoch, idx, len(train_loader), optimizer)
@@ -364,7 +376,7 @@ def train(train_loader, model, bias_denoise_encoder, classifier, criterion, opti
     return losses.avg, top1.avg
 
 
-def validate(val_loader, model, bias_denoise_encoder, classifier, criterion, args, best_acc, best_model=None):
+def validate(val_loader, model, bias_denoise_encoder, classifier, criterion, args, best_acc, device, best_model=None):
     save_bool = False
     model.eval()
     classifier.eval()
@@ -377,8 +389,8 @@ def validate(val_loader, model, bias_denoise_encoder, classifier, criterion, arg
     with torch.no_grad():
         end = time.time()
         for idx, (images, labels) in enumerate(val_loader):
-            images = images.cuda(non_blocking=True)
-            labels = labels.cuda(non_blocking=True)
+            images = images.to(device, non_blocking=True)
+            labels = labels.to(device, non_blocking=True)
             bsz = labels.shape[0]
 
             with torch.cuda.amp.autocast():
@@ -450,7 +462,7 @@ def main():
         best_acc = [0, 0, 0]  # Specificity, Sensitivity, Score
 
     train_loader, val_loader, args = set_loader(args)
-    model, bias_denoise_encoder, classifier, criterion, optimizer = set_model(args)
+    model, bias_denoise_encoder, classifier, criterion, optimizer, device = set_model(args)
     scaler = torch.cuda.amp.GradScaler(enabled=torch.cuda.is_available())
     best_model = [deepcopy(model.state_dict()), deepcopy(bias_denoise_encoder.state_dict()), deepcopy(classifier.state_dict())]
     no_improve = 0
@@ -478,7 +490,7 @@ def main():
 
             # train for one epoch
             time1 = time.time()
-            loss, acc = train(train_loader, model, bias_denoise_encoder, classifier, criterion, optimizer, epoch, args, scaler=scaler)
+            loss, acc = train(train_loader, model, bias_denoise_encoder, classifier, criterion, optimizer, epoch, args, device, scaler=scaler)
             time2 = time.time()
             print('Train epoch {}, total time {:.2f}, accuracy:{:.2f}'.format(
                 epoch, time2-time1, acc))
@@ -487,7 +499,7 @@ def main():
             do_eval = (args.eval_freq <= 1) or (epoch % args.eval_freq == 0) or (epoch == args.epochs)
             if do_eval:
                 prev_best = best_acc[-1]
-                best_acc, best_model, save_bool = validate(val_loader, model, bias_denoise_encoder, classifier, criterion, args, best_acc, best_model)
+                best_acc, best_model, save_bool = validate(val_loader, model, bias_denoise_encoder, classifier, criterion, args, best_acc, device, best_model)
                 if best_acc[-1] > prev_best:
                     no_improve = 0
                 else:
@@ -513,7 +525,7 @@ def main():
         save_model(model, bias_denoise_encoder, optimizer, args, epoch, save_file, classifier)
     else:
         print('Testing the pretrained checkpoint on {} dataset'.format(args.dataset))
-        best_acc, _, _  = validate(val_loader, model, bias_denoise_encoder, classifier, criterion, args, best_acc)
+        best_acc, _, _  = validate(val_loader, model, bias_denoise_encoder, classifier, criterion, args, best_acc, device)
 
     update_json('%s' % args.model_name, best_acc, path=os.path.join(args.save_dir, 'results.json'))
 

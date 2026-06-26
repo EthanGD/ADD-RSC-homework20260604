@@ -270,7 +270,7 @@ class MultiHeadDifferentialAttention(nn.Module):
         attention = attention1 - lambda_val * attention2  # (batch, num_heads, N, N)
 
         norm_shape = (N,)
-        layer_norm = nn.LayerNorm(norm_shape, elementwise_affine=True).to('cuda:0')
+        layer_norm = nn.LayerNorm(norm_shape, elementwise_affine=True).to(X.device)
 
 
         attention_reshaped = attention.view(-1, *norm_shape)
