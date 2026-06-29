@@ -1,1 +1,44 @@
 python main.py --model=ast --audioset_ckpt='./ast-finetuned-audioset-10-10-0.4593.pth' --data_folder='./data/ICBHI/ICBHI_final_database'
+
+
+按 AST base（代码里对应 [ASTModel](file:///c:/Ethan/code/cdssHomeWork20260604/ADD-RSC-homework20260604/models/ast.py) 的 `vit_deit_base_distilled_patch16_384`）训练，用 `--model ast` 启动即可，关键是把 **AudioSet 预训练权重路径**传对。
+
+**1) 准备权重与依赖**
+- AST 权重文件：`ast-finetuned-audioset-10-10-0.4593.pth`（你也可以用仓库的 `download_ast.py` 下载后放到项目根目录）
+- 依赖：`timm==0.4.5`（AST 代码里有强制断言，不是这个版本会直接报错）
+
+**2) 最小启动命令（Linux 示例）**
+```bash
+python main.py \
+  --model ast \
+  --data_folder ./ICBHI/ICBHI_final_database \
+  --audioset_ckpt ./ast-finetuned-audioset-10-10-0.4593.pth
+```
+
+**3) 推荐启动命令（更贴近你现在的加速/稳态设置）**
+```bash
+python main.py \
+  --model ast \
+  --tag train_ast_base \
+  --data_folder ./ICBHI/ICBHI_final_database \
+  --audioset_ckpt ./ast-finetuned-audioset-10-10-0.4593.pth \
+  --weighted_sampler --weighted_loss \
+  --batch_size 16 \
+  --eval_freq 2 --early_stop_patience 4
+```
+
+**4) 如果你要把主卡放到 7 号 GPU（对应我之前加的参数）**
+```bash
+python main.py \
+  --gpu_ids 7,0,1,2,3,4,5,6 \
+  --model ast \
+  --data_folder ./ICBHI/ICBHI_final_database \
+  --audioset_ckpt ./ast-finetuned-audioset-10-10-0.4593.pth
+```
+
+补充：
+- `--imagenet_pretrained` 只对 ResNet50 有意义，对 AST 不需要。
+- 你如果用的是 Windows 路径，把 `--data_folder` 和 `--audioset_ckpt` 换成对应的绝对/相对路径即可。
+
+
+python main.py --model ast --audioset_ckpt ./ast-finetuned-audioset-10-10-0.4593.pth --imagenet_pretrained --weighted_sampler --weighted_loss --batch_size 16 --eval_freq 2 --early_stop_patience 4

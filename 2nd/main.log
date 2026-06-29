@@ -1,3 +1,5 @@
+第二次每轮20分钟训练了17个小时的
+
 /ADD-RSC-homework20260604$ python main.py --imagenet_pretrained --weighted_sampler --weighted_loss --batch_size 16 --eval_freq 2 --early_stop_patience 4
 ********************
 Train and test 60-40% split with test_fold official
