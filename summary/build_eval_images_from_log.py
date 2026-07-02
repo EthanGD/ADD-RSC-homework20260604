@@ -10,6 +10,8 @@ from PIL import Image, ImageDraw, ImageFont
 class EpochMetrics:
     epoch: int
     train_acc: Optional[float] = None
+    train_loss_last: Optional[float] = None
+    train_loss_avg_last: Optional[float] = None
     val_sp: Optional[float] = None
     val_se: Optional[float] = None
     val_score: Optional[float] = None
@@ -256,6 +258,7 @@ def _draw_grouped_bars(
 
 def parse_log(log_text: str) -> Tuple[List[EpochMetrics], List[int], Dict[str, Dict[int, Tuple[str, int, float]]]]:
     epoch_train_re = re.compile(r"Train epoch\s+(\d+),.*accuracy:([0-9.]+)")
+    train_step_re = re.compile(r"Train:\s*\[(\d+)\]\[(\d+)/(\d+)\].*?loss\s+([0-9.]+)\s+\(([0-9.]+)\)")
     spse_re = re.compile(r"\*\s*S_p:\s*([0-9.]+),\s*S_e:\s*([0-9.]+),\s*Score:\s*([0-9.]+)")
     acc1_re = re.compile(r"\*\s*Acc@1\s*([0-9.]+)")
     best_re = re.compile(r"Best ckpt is modified.*Epoch\s*=\s*(\d+)")
@@ -269,6 +272,15 @@ def parse_log(log_text: str) -> Tuple[List[EpochMetrics], List[int], Dict[str, D
     current_epoch: Optional[int] = None
 
     for line in log_text.splitlines():
+        m = train_step_re.search(line)
+        if m:
+            ep = int(m.group(1))
+            loss_val = float(m.group(4))
+            loss_avg = float(m.group(5))
+            em = metrics_by_epoch.setdefault(ep, EpochMetrics(epoch=ep))
+            em.train_loss_last = loss_val
+            em.train_loss_avg_last = loss_avg
+
         if "[Preprocessed train dataset information]" in line:
             split_mode = "train"
         elif "[Preprocessed test dataset information]" in line:
@@ -335,6 +347,22 @@ def main():
         y_max=100,
         y_label="accuracy (%)",
     )
+
+    loss_avg = series_vals("train_loss_avg_last")
+    loss_val = series_vals("train_loss_last")
+    loss_points = [v for v in (loss_avg + loss_val) if v is not None]
+    if loss_points:
+        y_min = max(0.0, min(loss_points) * 0.9)
+        y_max = max(loss_points) * 1.1
+        _draw_line_chart(
+            out_path=os.path.join(out_dir, "train_loss_curve.png"),
+            title="Train Loss (last printed per epoch, from python main.log)",
+            epochs=epochs,
+            series={"loss_avg": loss_avg, "loss_val": loss_val},
+            y_min=y_min,
+            y_max=y_max,
+            y_label="loss",
+        )
 
     _draw_line_chart(
         out_path=os.path.join(out_dir, "sp_se_score.png"),
@@ -411,6 +439,7 @@ def main():
     print("generated in:", out_dir)
     for fn in [
         "train_val_acc.png",
+        "train_loss_curve.png",
         "sp_se_score.png",
         "score_with_best_ckpt.png",
         "sp_vs_se_scatter.png",
